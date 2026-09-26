@@ -1,6 +1,12 @@
 import streamlit as st
 import requests
-from google import genai
+import google.generativeai as genai
+
+# PRINCE API key
+PRINCE_API_KEY = st.secrets.get("PRINCE_API_KEY", "")
+
+if not PRINCE_API_KEY:
+    st.warning("PRINCE API key is not configured.")
 
 # ──────────────────────────────────────────────
 # PAGE SETUP
