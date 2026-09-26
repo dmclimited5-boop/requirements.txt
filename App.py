@@ -95,12 +95,15 @@ def call_prince(messages):
     if not PRINCE_API_KEY:
         raise Exception("PRINCE API key is missing.")
 
-    # PRINCE API connection goes here.
-    # The API endpoint/protocol has not been supplied,
-    # so no fake endpoint is used.
+    # PRM/PRINCE API REQUEST
+    #
+    # The real PRM endpoint and request schema must be supplied
+    # before an HTTP request can safely be constructed.
+    #
+    # Do not put the secret key directly in this file.
 
     raise Exception(
-        "PRINCE API connection is not configured."
+        "PRINCE API connector requires the PRM endpoint/schema."
     )
 
 
@@ -124,16 +127,13 @@ def call_gemini(messages):
 
     for message in messages:
 
-        role = message["role"]
-        content = message["content"]
-
-        if role == "user":
-            name = "User"
+        if message["role"] == "user":
+            role = "User"
         else:
-            name = "Assistant"
+            role = "Assistant"
 
         conversation.append(
-            f"{name}: {content}"
+            f"{role}: {message['content']}"
         )
 
     prompt = "\n\n".join(conversation)
@@ -161,7 +161,6 @@ def get_ai_response(user_input):
         }]
     )
 
-    # Try PRINCE first
     try:
 
         answer = call_prince(messages)
@@ -174,7 +173,6 @@ def get_ai_response(user_input):
 
         pass
 
-    # Gemini fallback
     try:
 
         answer = call_gemini(messages)
@@ -188,7 +186,7 @@ def get_ai_response(user_input):
         st.session_state.provider = "ERROR"
 
         return (
-            "❌ AI ERROR\n\n"
+            "AI ERROR\n\n"
             + str(error)
         )
 
@@ -198,7 +196,7 @@ with st.sidebar:
     st.markdown("## 👑 PRINCE CONTROL")
 
     st.write(
-        "**AI:** "
+        "**ACTIVE AI:** "
         + st.session_state.provider
     )
 
@@ -209,15 +207,15 @@ with st.sidebar:
 
     if GOOGLE_KEYS:
         st.success(
-            f"GOOGLE KEYS: {len(GOOGLE_KEYS)}"
+            f"GEMINI KEYS: {len(GOOGLE_KEYS)}"
         )
     else:
-        st.warning("GOOGLE KEYS: NONE")
+        st.warning("GEMINI KEYS: NONE")
 
     st.divider()
 
     if st.button(
-        "🗑️ CLEAR CHAT",
+        "CLEAR CHAT",
         use_container_width=True
     ):
 
@@ -229,8 +227,8 @@ with st.sidebar:
 st.markdown(
     f"""
     <div class="status">
-        👑 <b>PRINCE SYSTEM</b><br>
-        API KEY:
+        <b>👑 PRINCE SYSTEM</b><br>
+        PRINCE KEY:
         {"READY" if PRINCE_API_KEY else "NOT CONFIGURED"}
         <br>
         GEMINI:
@@ -286,16 +284,11 @@ if user_input:
         "content": answer
     })
 
-And your "requirements.txt" should be exactly:
+And "requirements.txt":
 
-:::writing{variant="document" id="29574" title="requirements.txt — Ready to Copy"}
+:::writing{variant="document" id="40827" title="requirements.txt"}
 
 streamlit
 google-genai
 
-Put both files directly in the repository root:
-
-App.py
-requirements.txt
-
-Then add your new/rotated PRINCE key and Google key through Streamlit Secrets rather than putting the keys inside "App.py".
+Do not put anything else into "App.py" or "requirements.txt". And because the previous error showed "/mount/src/requirements.txt/App.py", make sure "requirements.txt" is a file, with "App.py" beside it—not a folder containing "App.py".
