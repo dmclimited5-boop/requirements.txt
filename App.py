@@ -3,7 +3,7 @@ import requests
 import google.generativeai as genai
 
 # ──────────────────────────────────────────────
-# Page Setup
+# PAGE SETUP
 # ──────────────────────────────────────────────
 st.set_page_config(
     page_title="DMC EMPIRE CHAT BOT",
@@ -16,10 +16,13 @@ st.caption("Universal Design")
 
 
 # ──────────────────────────────────────────────
-# Secrets
+# SECRETS
 # ──────────────────────────────────────────────
 try:
-    PRINCE_API_KEY = st.secrets.get("PRINCE_API_KEY", "")
+    PRINCE_API_KEY = st.secrets.get(
+        "PRINCE_API_KEY",
+        ""
+    )
 
     GOOGLE_KEYS = [
         st.secrets.get("GOOGLE_API_KEY_1", ""),
@@ -27,15 +30,21 @@ try:
         st.secrets.get("GOOGLE_API_KEY_3", ""),
     ]
 
-    GOOGLE_KEYS = [k.strip() for k in GOOGLE_KEYS if k.strip()]
+    GOOGLE_KEYS = [
+        key.strip()
+        for key in GOOGLE_KEYS
+        if key.strip()
+    ]
 
 except Exception:
-    st.error("⚠️ Please configure your Streamlit Secrets.")
+    st.error(
+        "⚠️ Please configure your Streamlit Secrets."
+    )
     st.stop()
 
 
 # ──────────────────────────────────────────────
-# Session State
+# SESSION STATE
 # ──────────────────────────────────────────────
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -53,58 +62,32 @@ if "google_key_index" not in st.session_state:
 def call_prince(messages):
 
     if not PRINCE_API_KEY:
-        raise ValueError("PRINCE API key is not configured.")
+        raise ValueError(
+            "PRINCE API key is missing."
+        )
 
-    # Set your actual PRINCE API endpoint here.
-    # This is intentionally separate from the API key.
-    PRINCE_API_URL = "YOUR_PRINCE_API_ENDPOINT"
+    # Connect this function to your existing
+    # PRINCE API/PRM implementation.
+    #
+    # Example:
+    #
+    # from prince_api import chat
+    # return chat(messages, PRINCE_API_KEY)
 
-    payload = {
-        "messages": messages,
-        "prm": True
-    }
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {PRINCE_API_KEY}"
-    }
-
-    response = requests.post(
-        PRINCE_API_URL,
-        json=payload,
-        headers=headers,
-        timeout=30
-    )
-
-    response.raise_for_status()
-
-    data = response.json()
-
-    # Accept common PRINCE response formats
-    if "reply" in data:
-        return data["reply"]
-
-    if "response" in data:
-        return data["response"]
-
-    if "message" in data:
-        return data["message"]
-
-    if "content" in data:
-        return data["content"]
-
-    raise ValueError(
-        f"Unknown PRINCE API response: {data}"
+    raise RuntimeError(
+        "PRINCE API connector is not connected."
     )
 
 
 # ──────────────────────────────────────────────
-# Gemini Fallback
+# GEMINI 3.6 FLASH
 # ──────────────────────────────────────────────
 def call_gemini(messages):
 
     if not GOOGLE_KEYS:
-        raise ValueError("No Google API keys found.")
+        raise ValueError(
+            "No Google API keys found."
+        )
 
     key = GOOGLE_KEYS[
         st.session_state.google_key_index
@@ -116,7 +99,7 @@ def call_gemini(messages):
     genai.configure(api_key=key)
 
     model = genai.GenerativeModel(
-        "gemini-1.5-flash"
+        "gemini-3.6-flash"
     )
 
     history = []
@@ -146,7 +129,7 @@ def call_gemini(messages):
 
 
 # ──────────────────────────────────────────────
-# AI Router
+# AI ROUTER
 # ──────────────────────────────────────────────
 def get_response(user_input):
 
@@ -165,19 +148,19 @@ def get_response(user_input):
 
         return reply, "PRINCE"
 
-    except Exception as e:
+    except Exception:
 
         st.toast(
-            "PRINCE unavailable → Gemini fallback",
+            "PRINCE unavailable → Gemini 3.6 Flash",
             icon="⚠️"
         )
 
-    # Gemini fallback
+    # GEMINI FALLBACK
     try:
 
         reply = call_gemini(messages)
 
-        return reply, "Gemini"
+        return reply, "Gemini 3.6 Flash"
 
     except Exception as e:
 
@@ -188,24 +171,26 @@ def get_response(user_input):
 
 
 # ──────────────────────────────────────────────
-# Sidebar
+# SIDEBAR
 # ──────────────────────────────────────────────
 with st.sidebar:
 
     st.header("👑 PRINCE SYSTEM")
 
     st.write(
-        f"**Current AI:** `{st.session_state.provider}`"
+        f"**Current AI:** "
+        f"`{st.session_state.provider}`"
     )
 
     st.write(
-        f"**Google Keys:** `{len(GOOGLE_KEYS)}`"
+        f"**Google Keys:** "
+        f"`{len(GOOGLE_KEYS)}`"
     )
 
     if PRINCE_API_KEY:
-        st.success("PRINCE API KEY: LOADED")
+        st.success("PRINCE API: READY")
     else:
-        st.warning("PRINCE API KEY: MISSING")
+        st.warning("PRINCE API: KEY MISSING")
 
     st.divider()
 
@@ -217,7 +202,7 @@ with st.sidebar:
 
 
 # ──────────────────────────────────────────────
-# Chat History
+# CHAT HISTORY
 # ──────────────────────────────────────────────
 for msg in st.session_state.messages:
 
@@ -227,9 +212,11 @@ for msg in st.session_state.messages:
 
 
 # ──────────────────────────────────────────────
-# Chat Input
+# CHAT INPUT
 # ──────────────────────────────────────────────
-if prompt := st.chat_input("Talk to PRINCE..."):
+if prompt := st.chat_input(
+    "Talk to PRINCE..."
+):
 
     st.session_state.messages.append({
         "role": "user",
@@ -241,9 +228,13 @@ if prompt := st.chat_input("Talk to PRINCE..."):
 
     with st.chat_message("assistant"):
 
-        with st.spinner("PRINCE is thinking..."):
+        with st.spinner(
+            "PRINCE is thinking..."
+        ):
 
-            reply, provider = get_response(prompt)
+            reply, provider = get_response(
+                prompt
+            )
 
             st.session_state.provider = provider
 
