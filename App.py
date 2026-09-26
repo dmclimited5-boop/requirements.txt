@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-import google.generativeai as genai
+from google import genai
 
 # ──────────────────────────────────────────────
 # PAGE SETUP
@@ -37,9 +37,7 @@ try:
     ]
 
 except Exception:
-    st.error(
-        "⚠️ Please configure your Streamlit Secrets."
-    )
+    st.error("⚠️ Please configure your Streamlit Secrets.")
     st.stop()
 
 
@@ -62,17 +60,10 @@ if "google_key_index" not in st.session_state:
 def call_prince(messages):
 
     if not PRINCE_API_KEY:
-        raise ValueError(
-            "PRINCE API key is missing."
-        )
+        raise ValueError("PRINCE API key is missing.")
 
-    # Connect this function to your existing
-    # PRINCE API/PRM implementation.
-    #
-    # Example:
-    #
-    # from prince_api import chat
-    # return chat(messages, PRINCE_API_KEY)
+    # Connect your existing PRINCE/PRM
+    # implementation here.
 
     raise RuntimeError(
         "PRINCE API connector is not connected."
@@ -80,14 +71,12 @@ def call_prince(messages):
 
 
 # ──────────────────────────────────────────────
-# GEMINI 3.6 FLASH
+# GEMINI
 # ──────────────────────────────────────────────
 def call_gemini(messages):
 
     if not GOOGLE_KEYS:
-        raise ValueError(
-            "No Google API keys found."
-        )
+        raise ValueError("No Google API keys found.")
 
     key = GOOGLE_KEYS[
         st.session_state.google_key_index
@@ -96,33 +85,31 @@ def call_gemini(messages):
 
     st.session_state.google_key_index += 1
 
-    genai.configure(api_key=key)
-
-    model = genai.GenerativeModel(
-        "gemini-3.6-flash"
+    client = genai.Client(
+        api_key=key
     )
 
-    history = []
+    # Convert conversation history into
+    # a format Gemini can understand.
+    conversation = []
 
-    for msg in messages[:-1]:
+    for msg in messages:
 
         role = (
-            "user"
+            "User"
             if msg["role"] == "user"
-            else "model"
+            else "Assistant"
         )
 
-        history.append({
-            "role": role,
-            "parts": [msg["content"]]
-        })
+        conversation.append(
+            f"{role}: {msg['content']}"
+        )
 
-    chat = model.start_chat(
-        history=history
-    )
+    prompt = "\n\n".join(conversation)
 
-    response = chat.send_message(
-        messages[-1]["content"]
+    response = client.models.generate_content(
+        model="gemini-3.6-flash",
+        contents=prompt
     )
 
     return response.text
@@ -151,7 +138,7 @@ def get_response(user_input):
     except Exception:
 
         st.toast(
-            "PRINCE unavailable → Gemini 3.6 Flash",
+            "PRINCE unavailable → Gemini Flash",
             icon="⚠️"
         )
 
@@ -160,7 +147,7 @@ def get_response(user_input):
 
         reply = call_gemini(messages)
 
-        return reply, "Gemini 3.6 Flash"
+        return reply, "Gemini Flash"
 
     except Exception as e:
 
@@ -178,13 +165,11 @@ with st.sidebar:
     st.header("👑 PRINCE SYSTEM")
 
     st.write(
-        f"**Current AI:** "
-        f"`{st.session_state.provider}`"
+        f"**Current AI:** `{st.session_state.provider}`"
     )
 
     st.write(
-        f"**Google Keys:** "
-        f"`{len(GOOGLE_KEYS)}`"
+        f"**Google Keys:** `{len(GOOGLE_KEYS)}`"
     )
 
     if PRINCE_API_KEY:
@@ -214,9 +199,7 @@ for msg in st.session_state.messages:
 # ──────────────────────────────────────────────
 # CHAT INPUT
 # ──────────────────────────────────────────────
-if prompt := st.chat_input(
-    "Talk to PRINCE..."
-):
+if prompt := st.chat_input("Talk to PRINCE..."):
 
     st.session_state.messages.append({
         "role": "user",
@@ -228,13 +211,9 @@ if prompt := st.chat_input(
 
     with st.chat_message("assistant"):
 
-        with st.spinner(
-            "PRINCE is thinking..."
-        ):
+        with st.spinner("PRINCE is thinking..."):
 
-            reply, provider = get_response(
-                prompt
-            )
+            reply, provider = get_response(prompt)
 
             st.session_state.provider = provider
 
