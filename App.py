@@ -71,8 +71,7 @@ GOOGLE_KEYS = [
     st.secrets.get("GOOGLE_API_KEY_1", ""),
     st.secrets.get("GOOGLE_API_KEY_2", ""),
     st.secrets.get("GOOGLE_API_KEY_3", ""),
-    st.secrets.get("GOOGLE_API_KEY_4", ""),
-    st.secrets.get("GOOGLE_API_KEY_5", "")
+
 ]
 
 GOOGLE_KEYS = [
