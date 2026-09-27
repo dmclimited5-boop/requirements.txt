@@ -12,11 +12,11 @@ st.set_page_config(
 )
 
 st.title("👑 DMC EMPIRE CHAT BOT")
-st.caption("Universal Design")
+st.caption("PRINCE AI")
 
 
 # ==========================================
-# CONFIG
+# PRINCE CONFIG
 # ==========================================
 
 PRINCE_ENDPOINT = (
@@ -28,18 +28,6 @@ PRINCE_API_KEY = st.secrets.get(
     ""
 ).strip()
 
-GOOGLE_KEYS = [
-    st.secrets.get("GOOGLE_API_KEY_1", ""),
-    st.secrets.get("GOOGLE_API_KEY_2", ""),
-    st.secrets.get("GOOGLE_API_KEY_3", "")
-]
-
-GOOGLE_KEYS = [
-    key.strip()
-    for key in GOOGLE_KEYS
-    if key and key.strip()
-]
-
 
 # ==========================================
 # SESSION STATE
@@ -48,22 +36,16 @@ GOOGLE_KEYS = [
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "provider" not in st.session_state:
-    st.session_state.provider = "—"
-
-if "google_key_index" not in st.session_state:
-    st.session_state.google_key_index = 0
-
 
 # ==========================================
-# PRINCE
+# PRINCE API
 # ==========================================
 
 def call_prince(messages):
 
     if not PRINCE_API_KEY:
         raise ValueError(
-            "PRINCE API key is missing."
+            "PRINCE_API_KEY is missing from Streamlit Secrets."
         )
 
     headers = {
@@ -83,140 +65,82 @@ def call_prince(messages):
         timeout=30
     )
 
-    response.raise_for_status()
-
-    data = response.json()
-
-    return data["choices"][0]["message"]["content"]
-
-
-# ==========================================
-# GEMINI REST API
-# ==========================================
-
-def call_gemini(messages):
-
-    if not GOOGLE_KEYS:
-        raise ValueError(
-            "No Google API keys configured."
-        )
-
-    index = (
-        st.session_state.google_key_index
-        % len(GOOGLE_KEYS)
-    )
-
-    api_key = GOOGLE_KEYS[index]
-
-    st.session_state.google_key_index += 1
-
-    url = (
-        "https://generativelanguage.googleapis.com/"
-        "v1beta/models/gemini-3.8-flash:generateContent"
-    )
-
-    contents = []
-
-    for message in messages:
-
-        if message["role"] == "user":
-            role = "user"
-        else:
-            role = "model"
-
-        contents.append({
-            "role": role,
-            "parts": [
-                {
-                    "text": message["content"]
-                }
-            ]
-        })
-
-    payload = {
-        "contents": contents
-    }
-
-    response = requests.post(
-        url,
-        params={
-            "key": api_key
-        },
-        headers={
-            "Content-Type": "application/json"
-        },
-        json=payload,
-        timeout=30
-    )
-
-    response.raise_for_status()
-
-    data = response.json()
-
-    try:
-        return (
-            data["candidates"][0]
-            ["content"]["parts"][0]["text"]
-        )
-
-    except (KeyError, IndexError, TypeError):
-
-        raise ValueError(
-            f"Unexpected Gemini response: {data}"
-        )
-
-
-# ==========================================
-# ROUTER
-# ==========================================
-
-def get_response(user_input):
-
-    messages = (
-        st.session_state.messages
-        + [
-            {
-                "role": "user",
-                "content": user_input
-            }
-        ]
-    )
-
-    # --------------------------------------
-    # PRINCE FIRST
-    # --------------------------------------
-
-    if PRINCE_API_KEY:
-
+    # Show useful API errors without exposing the key
+    if not response.ok:
         try:
-
-            reply = call_prince(messages)
-
-            return reply, "PRINCE"
-
-        except Exception as error:
-
-            st.toast(
-                "PRINCE unavailable → Gemini fallback",
-                icon="⚠️"
+            error_data = response.json()
+            raise RuntimeError(
+                f"PRINCE API {response.status_code}: "
+                f"{error_data}"
+            )
+        except ValueError:
+            raise RuntimeError(
+                f"PRINCE API {response.status_code}: "
+                f"{response.text[:500]}"
             )
 
-    # --------------------------------------
-    # GEMINI
-    # --------------------------------------
+    data = response.json()
 
     try:
+        return data["choices"][0]["message"]["content"]
 
-        reply = call_gemini(messages)
-
-        return reply, "Gemini"
-
-    except Exception as error:
-
-        return (
-            f"❌ AI Error: {str(error)}",
-            "Error"
+    except (KeyError, IndexError, TypeError):
+        raise RuntimeError(
+            f"Unexpected PRINCE response: {data}"
         )
+
+
+# ==========================================
+# CHAT
+# ==========================================
+
+for message in st.session_state.messages:
+
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+
+prompt = st.chat_input(
+    "Talk to PRINCE..."
+)
+
+
+if prompt:
+
+    user_message = {
+        "role": "user",
+        "content": prompt
+    }
+
+    st.session_state.messages.append(
+        user_message
+    )
+
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+
+        with st.spinner("PRINCE is thinking..."):
+
+            try:
+
+                reply = call_prince(
+                    st.session_state.messages
+                )
+
+                st.markdown(reply)
+
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": reply
+                })
+
+            except Exception as error:
+
+                st.error(
+                    f"❌ PRINCE Error: {error}"
+                )
 
 
 # ==========================================
@@ -225,21 +149,19 @@ def get_response(user_input):
 
 with st.sidebar:
 
-    st.header("👑 System Status")
+    st.header("👑 PRINCE STATUS")
+
+    if PRINCE_API_KEY:
+        st.success("PRC API Key: Loaded")
+    else:
+        st.error("PRC API Key: Missing")
 
     st.write(
-        f"**Current AI:** "
-        f"`{st.session_state.provider}`"
+        "Endpoint:"
     )
 
-    st.write(
-        f"**Google Keys Loaded:** "
-        f"`{len(GOOGLE_KEYS)}`"
-    )
-
-    st.write(
-        "**PRINCE Cloud:** "
-        "`127.0.0.1:8090`"
+    st.code(
+        "127.0.0.1:8090"
     )
 
     st.divider()
@@ -248,59 +170,21 @@ with st.sidebar:
 
         st.session_state.messages = []
 
-        st.session_state.provider = "—"
-
-        st.session_state.google_key_index = 0
-
         st.rerun()
 
+"requirements.txt"
 
-# ==========================================
-# CHAT HISTORY
-# ==========================================
+:::writing{variant="document" id="81502" title="PRINCE Requirements"}
 
-for message in st.session_state.messages:
+streamlit
+requests
 
-    with st.chat_message(message["role"]):
+Streamlit Secrets
 
-        st.markdown(
-            message["content"]
-        )
+Only add:
 
+PRINCE_API_KEY = "YOUR_NEW_PRC_KEY"
 
-# ==========================================
-# CHAT INPUT
-# ==========================================
+This version uses PRINCE as the only AI.
 
-prompt = st.chat_input(
-    "Talk to PRINCE..."
-)
-
-if prompt:
-
-    st.session_state.messages.append({
-        "role": "user",
-        "content": prompt
-    })
-
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-
-        with st.spinner(
-            "PRINCE is thinking..."
-        ):
-
-            reply, provider = get_response(
-                prompt
-            )
-
-            st.session_state.provider = provider
-
-            st.markdown(reply)
-
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": reply
-    })
+One thing to watch for: because you're deploying Streamlit, if you get connection refused / connection timeout, that doesn't mean the PRC key is wrong. It means Streamlit Cloud cannot reach "127.0.0.1:8090" on your Android.
