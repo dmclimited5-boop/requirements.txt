@@ -1,9 +1,7 @@
+
 import streamlit as st
 import requests
-
-# ==========================================
-# PAGE CONFIG
-# ==========================================
+from google import genai
 
 st.set_page_config(
     page_title="DMC EMPIRE CHAT BOT",
@@ -16,32 +14,26 @@ st.caption("Universal Design")
 
 
 # ==========================================
-# CONFIGURATION
+# CONFIG
 # ==========================================
 
 PRINCE_ENDPOINT = "http://127.0.0.1:8090/v1/chat/completions"
 
-try:
-    PRINCE_API_KEY = st.secrets.get(
-        "PRINCE_API_KEY",
-        ""
-    ).strip()
+PRINCE_API_KEY = st.secrets.get(
+    "PRINCE_API_KEY", ""
+).strip()
 
-    GOOGLE_KEYS = [
-        st.secrets.get("GOOGLE_API_KEY_1", ""),
-        st.secrets.get("GOOGLE_API_KEY_2", ""),
-        st.secrets.get("GOOGLE_API_KEY_3", "")
-    ]
+GOOGLE_KEYS = [
+    st.secrets.get("GOOGLE_API_KEY_1", ""),
+    st.secrets.get("GOOGLE_API_KEY_2", ""),
+    st.secrets.get("GOOGLE_API_KEY_3", "")
+]
 
-    GOOGLE_KEYS = [
-        key.strip()
-        for key in GOOGLE_KEYS
-        if key and key.strip()
-    ]
-
-except Exception as error:
-    st.error("⚠️ Please configure your API keys in Streamlit Secrets.")
-    st.stop()
+GOOGLE_KEYS = [
+    key.strip()
+    for key in GOOGLE_KEYS
+    if key and key.strip()
+]
 
 
 # ==========================================
@@ -59,13 +51,15 @@ if "google_key_index" not in st.session_state:
 
 
 # ==========================================
-# PRINCE API
+# PRINCE
 # ==========================================
 
 def call_prince(messages):
 
     if not PRINCE_API_KEY:
-        raise ValueError("PRINCE API key is missing.")
+        raise ValueError(
+            "PRINCE API key is missing."
+        )
 
     headers = {
         "Authorization": f"Bearer {PRINCE_API_KEY}",
@@ -88,17 +82,11 @@ def call_prince(messages):
 
     data = response.json()
 
-    try:
-        return data["choices"][0]["message"]["content"]
-
-    except (KeyError, IndexError, TypeError):
-        raise ValueError(
-            f"Unexpected PRINCE response: {data}"
-        )
+    return data["choices"][0]["message"]["content"]
 
 
 # ==========================================
-# GEMINI FALLBACK
+# GEMINI
 # ==========================================
 
 def call_gemini(messages):
@@ -108,34 +96,31 @@ def call_gemini(messages):
             "No Google API keys configured."
         )
 
-    # Modern Google GenAI SDK
-    from google import genai as google_genai
-
-    key_index = (
+    index = (
         st.session_state.google_key_index
         % len(GOOGLE_KEYS)
     )
 
-    api_key = GOOGLE_KEYS[key_index]
+    api_key = GOOGLE_KEYS[index]
 
     st.session_state.google_key_index += 1
 
-    client = google_genai.Client(
+    client = genai.Client(
         api_key=api_key
     )
 
     conversation = []
 
-    for msg in messages:
+    for message in messages:
 
         role = (
             "User"
-            if msg["role"] == "user"
+            if message["role"] == "user"
             else "Assistant"
         )
 
         conversation.append(
-            f"{role}: {msg['content']}"
+            f"{role}: {message['content']}"
         )
 
     prompt = "\n".join(conversation)
@@ -154,25 +139,20 @@ def call_gemini(messages):
 
 
 # ==========================================
-# RESPONSE ROUTER
+# AI ROUTER
 # ==========================================
 
 def get_response(user_input):
 
     messages = (
         st.session_state.messages
-        + [
-            {
-                "role": "user",
-                "content": user_input
-            }
-        ]
+        + [{
+            "role": "user",
+            "content": user_input
+        }]
     )
 
-    # --------------------------------------
-    # TRY PRINCE FIRST
-    # --------------------------------------
-
+    # PRINCE FIRST
     if PRINCE_API_KEY:
 
         try:
@@ -181,17 +161,13 @@ def get_response(user_input):
 
             return reply, "PRINCE"
 
-        except Exception:
+        except Exception as error:
 
-            st.toast(
-                "PRINCE unavailable → Switching to Gemini",
-                icon="⚠️"
+            st.warning(
+                f"PRINCE unavailable: {error}"
             )
 
-    # --------------------------------------
     # GEMINI FALLBACK
-    # --------------------------------------
-
     try:
 
         reply = call_gemini(messages)
@@ -243,20 +219,20 @@ with st.sidebar:
 
 
 # ==========================================
-# DISPLAY CHAT HISTORY
+# CHAT HISTORY
 # ==========================================
 
-for msg in st.session_state.messages:
+for message in st.session_state.messages:
 
-    with st.chat_message(msg["role"]):
+    with st.chat_message(message["role"]):
 
         st.markdown(
-            msg["content"]
+            message["content"]
         )
 
 
 # ==========================================
-# CHAT INPUT
+# CHAT
 # ==========================================
 
 prompt = st.chat_input(
@@ -265,20 +241,14 @@ prompt = st.chat_input(
 
 if prompt:
 
-    # Add user message
-    st.session_state.messages.append(
-        {
-            "role": "user",
-            "content": prompt
-        }
-    )
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt
+    })
 
-    # Display user message
     with st.chat_message("user"):
-
         st.markdown(prompt)
 
-    # Generate response
     with st.chat_message("assistant"):
 
         with st.spinner(
@@ -293,10 +263,7 @@ if prompt:
 
             st.markdown(reply)
 
-    # Save assistant response
-    st.session_state.messages.append(
-        {
-            "role": "assistant",
-            "content": reply
-        }
-    )
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": reply
+    })
