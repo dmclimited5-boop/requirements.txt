@@ -1,7 +1,9 @@
-
 import streamlit as st
 import requests
-from google import genai
+
+# ==========================================
+# PAGE
+# ==========================================
 
 st.set_page_config(
     page_title="DMC EMPIRE CHAT BOT",
@@ -17,10 +19,13 @@ st.caption("Universal Design")
 # CONFIG
 # ==========================================
 
-PRINCE_ENDPOINT = "http://127.0.0.1:8090/v1/chat/completions"
+PRINCE_ENDPOINT = (
+    "http://127.0.0.1:8090/v1/chat/completions"
+)
 
 PRINCE_API_KEY = st.secrets.get(
-    "PRINCE_API_KEY", ""
+    "PRINCE_API_KEY",
+    ""
 ).strip()
 
 GOOGLE_KEYS = [
@@ -86,7 +91,7 @@ def call_prince(messages):
 
 
 # ==========================================
-# GEMINI
+# GEMINI REST API
 # ==========================================
 
 def call_gemini(messages):
@@ -105,54 +110,82 @@ def call_gemini(messages):
 
     st.session_state.google_key_index += 1
 
-    client = genai.Client(
-        api_key=api_key
+    url = (
+        "https://generativelanguage.googleapis.com/"
+        "v1beta/models/gemini-3.8-flash:generateContent"
     )
 
-    conversation = []
+    contents = []
 
     for message in messages:
 
-        role = (
-            "User"
-            if message["role"] == "user"
-            else "Assistant"
-        )
+        if message["role"] == "user":
+            role = "user"
+        else:
+            role = "model"
 
-        conversation.append(
-            f"{role}: {message['content']}"
-        )
+        contents.append({
+            "role": role,
+            "parts": [
+                {
+                    "text": message["content"]
+                }
+            ]
+        })
 
-    prompt = "\n".join(conversation)
+    payload = {
+        "contents": contents
+    }
 
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt
+    response = requests.post(
+        url,
+        params={
+            "key": api_key
+        },
+        headers={
+            "Content-Type": "application/json"
+        },
+        json=payload,
+        timeout=30
     )
 
-    if not response.text:
-        raise ValueError(
-            "Gemini returned an empty response."
+    response.raise_for_status()
+
+    data = response.json()
+
+    try:
+        return (
+            data["candidates"][0]
+            ["content"]["parts"][0]["text"]
         )
 
-    return response.text
+    except (KeyError, IndexError, TypeError):
+
+        raise ValueError(
+            f"Unexpected Gemini response: {data}"
+        )
 
 
 # ==========================================
-# AI ROUTER
+# ROUTER
 # ==========================================
 
 def get_response(user_input):
 
     messages = (
         st.session_state.messages
-        + [{
-            "role": "user",
-            "content": user_input
-        }]
+        + [
+            {
+                "role": "user",
+                "content": user_input
+            }
+        ]
     )
 
+    # --------------------------------------
     # PRINCE FIRST
+    # --------------------------------------
+
     if PRINCE_API_KEY:
 
         try:
@@ -163,11 +196,15 @@ def get_response(user_input):
 
         except Exception as error:
 
-            st.warning(
-                f"PRINCE unavailable: {error}"
+            st.toast(
+                "PRINCE unavailable → Gemini fallback",
+                icon="⚠️"
             )
 
-    # GEMINI FALLBACK
+    # --------------------------------------
+    # GEMINI
+    # --------------------------------------
+
     try:
 
         reply = call_gemini(messages)
@@ -232,7 +269,7 @@ for message in st.session_state.messages:
 
 
 # ==========================================
-# CHAT
+# CHAT INPUT
 # ==========================================
 
 prompt = st.chat_input(
