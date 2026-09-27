@@ -171,20 +171,3 @@ with st.sidebar:
         st.session_state.messages = []
 
         st.rerun()
-
-"requirements.txt"
-
-:::writing{variant="document" id="81502" title="PRINCE Requirements"}
-
-streamlit
-requests
-
-Streamlit Secrets
-
-Only add:
-
-PRINCE_API_KEY = "YOUR_NEW_PRC_KEY"
-
-This version uses PRINCE as the only AI.
-
-One thing to watch for: because you're deploying Streamlit, if you get connection refused / connection timeout, that doesn't mean the PRC key is wrong. It means Streamlit Cloud cannot reach "127.0.0.1:8090" on your Android.
